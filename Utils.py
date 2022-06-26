@@ -10,7 +10,7 @@ class SearchResult():
         self.html_sources = []
         self.has_experience = False
         self.has_education = False
-        self.education_in_desc = False
+        self.edu_in_desc = False
         self.exp_in_desc = False
     
     def has_extra_data(self) -> bool:
@@ -123,7 +123,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
             else:
                 exp_re = re.compile('(\d\+?|([Oo]ne|[Tt]wo|[Tt]hree|[Ff]our|[Ff]ive|[Ss]ix|[Ss]even|[Ee]ight|[Nn]ine|[Tt]en)) ([Yy]ear|[Mm]onth)')
                 exp_el = soup.find(string=exp_re)
-                if exp_el and len(exp_el.text) < 350:
+                if exp_el and len(exp_el.text) < 500:
                     exp_text = exp_el.text
                     search_result.exp_in_desc = True
                 else:
@@ -160,7 +160,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                     for i, choice in enumerate(possible):
                        print(f"{i}: {choice}")
                        print(('-' * 40) + '\n')
-                    choice = int(input("Choose correct option: \n"))
+                    choice = int(input("Choose correct option for experience: \n"))
                     data_dict[k] = str(possible[choice])
                     search_result.exp_in_desc = str(possible[choice]) != "Experience not found"
         
@@ -172,19 +172,64 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                     f.write(soup.find(id=v).text + '\n')
                 data_dict[k] = soup.find(id=v).text
             else:
-                edu_text = 'No education requirements found'
-                for edu in ['achelor', 'master', 'Master', 'egree', 'ccredited']:
-                    if edu in soup.find(id=id_dict['Description']).text:
-                        search_result.education_in_desc = True
-                        #edu_text += soup.find(id=id_dict['Description']).text
-                        edu_text = "Education requirements in description"
-                data_dict[k] = edu_text
+                edu_re = re.compile('([Bb]achelor|[Mm]aster|[Pp][Hh][Dd]|ADN|BSN|BLS)')
+                edu_els = soup.find_all(string=edu_re)
+                edu_els = [x for x in edu_els if len(x.text) < 400 and x.text != '']
+                if edu_els:
+                    edu_text = '\n'.join([e.text for e in edu_els])
+                    search_result.edu_in_desc = True
+                else:
+                    header_re = re.compile('(EDUCATION|Qualifications|QUALIFICATIONS)')
+                    education_header = soup.find(string=re.compile(header_re))
+                    possible = []
+                    if education_header:
+                        education_header = education_header.parent
+                        if len(education_header.text) > 1000:
+                            edu_text = 'No education requirements found'
+                        else:
+                            edu_re = re.compile('([Bb]achelor|[Mm]aster|[Pp][Hh][Dd]|BLS|[Aa]ccredited|ADN|BSN)')
+                            edu_text = education_header.find_next(string=edu_re)
+                            if (edu_text and len(edu_text) > 350):
+                                edu_text = 'No education requirements found'
+                            else:
+                                search_result.edu_in_desc = True
+                    else:
+                        edu_text = 'No education requirements found'
+                        for y in ['achelor', 'master', 'Master', 'PhD', 'ssociate', 'BLS', 'ccredited', 'ADN', 'BSN']:
+                            inner_soup = soup.find(id=id_dict['Description'])    
+                            if y in inner_soup.text:
+                                candidates = inner_soup.find_all(string=re.compile(y))
+                                candidates = [x.parent for x in candidates if len(x) < 1000]
+                                #candidates = [x for x in candidates if not any_of_in(['125 years', 'DaVita'], x.text)]
+                                if candidates:
+                                    possible += candidates
+                                    search_result.edu_in_desc = True
+                                #exp_text += soup.find(id=id_dict['Description']).text
+                                #exp_text = "Experience requirements in description"
+                                #exp_text = str(possible)
+                if not possible:
+                    data_dict[k] = edu_text
+                elif len(possible) == 1:
+                    data_dict[k] = str(possible[0])
+                else:
+                    print('\n')
+                    print(len(possible))
+                    possible.append("Education not found")
+                    for i, choice in enumerate(possible):
+                       print(f"{i}: {choice}")
+                       print(('-' * 40) + '\n')
+                    choice = int(input("Choose correct option for education: \n"))
+                    data_dict[k] = str(possible[choice])
+                    search_result.edu_in_desc = str(possible[choice]) != "Education not found"
+        
         else:
             try:
                 data_dict[k] = soup.find(id=v).text
             except:
                 data_dict[k] = ''
 
+
+    
     #Removes location data that is sometimes at the end of the job title in posting
     data_dict['JobTitle'] = data_dict['JobTitle'].split('-')[0]
 
