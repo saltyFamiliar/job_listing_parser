@@ -93,6 +93,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, PageContent]:
     for k, v in id_dict.items():
         possible = []
         
+        # Populates page_content desc_html list with html elements in job description section
         if k == 'Description':
             for e in soup.find(id=v):
                 page_content.desc_html.append(e)
@@ -101,8 +102,6 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, PageContent]:
         elif k == 'Experience':
             if not 'Not Specified' in soup.find(id=v).text:
                 page_content.has_experience = True
-                with open('has_experience.txt', 'a') as f:
-                    f.write(soup.find(id=v).text + '\n')
                 data_dict[k] = soup.find(id=v).text
             else:
                 exp_re = re.compile('(\d\+?|([Oo]ne|[Tt]wo|[Tt]hree|[Ff]our|[Ff]ive|[Ss]ix|[Ss]even|[Ee]ight|[Nn]ine|[Tt]en)) ([Yy]ear|[Mm]onth)')
@@ -152,8 +151,6 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, PageContent]:
         elif k == 'Education':
             if not 'No Minimum' in soup.find(id=v).text:
                 page_content.has_education = True
-                with open('has_education.txt', 'a') as f:
-                    f.write(soup.find(id=v).text + '\n')
                 data_dict[k] = soup.find(id=v).text
             else:
                 edu_re = re.compile('([Bb]achelor|[Mm]aster|[Pp][Hh][Dd]|ADN|BSN|BLS)')
