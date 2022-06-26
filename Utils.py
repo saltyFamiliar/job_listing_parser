@@ -1,13 +1,14 @@
 import re
 from typing import Any
+from unicodedata import name
 import bs4
 
 
-class SearchResult():
+class PageContent():
     def __init__(self, fn, soup):
         self.file_searched = fn
         self.soup = soup
-        self.html_sources = []
+        self.desc_html = []
         self.has_experience = False
         self.has_education = False
         self.edu_in_desc = False
@@ -20,10 +21,10 @@ class SearchResult():
         return len(self.data()) > 0
 
     def data(self) -> str:
-        return ''.join([x.text for x in self.html_sources])
+        return ''.join([x.text for x in self.desc_html])
     
     def raw_data(self) -> str:
-        return ''.join(map(str, self.html_sources))
+        return ''.join(map(str, self.desc_html))
 
 
 class SoupBowl():
@@ -51,7 +52,7 @@ def any_of_in(s: list[str], target: str) -> bool:
     return False
 
 # Writes entry to file at given filename
-def add_entry(filename: str, result: SearchResult, raw: bool=False) -> None:
+def add_entry(filename: str, result: PageContent, raw: bool=False) -> None:
     # Returns entry header and footer strings
     def entry_border(title: str) -> tuple[str, str]:
         padding = '-' * ((80 - len(title)) // 2)
@@ -70,19 +71,8 @@ def add_entry(filename: str, result: SearchResult, raw: bool=False) -> None:
         f.write(footer)
 
 
-# Search for given keywords                        
-def search(desc_html, fn: str) -> SearchResult:
-    # Iterates over keyword list, updating SearchResult if kw found in target
-    # Returns bool representing whether a keyword was found in target
-    result = SearchResult(fn, desc_html)
-    for e in desc_html:
-        result.html_sources.append(e)
-    
-    return result
-
-
 #finds info on jobs for location, job number, job title and salary
-def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]: 
+def find_jobinfo(bowl: SoupBowl) -> tuple[dict, PageContent]: 
     #values are unique div id's
     id_dict = {'Location': "ctl00_Main_content_JobLocationData",
                 'JobNum': "ctl00_Main_content_JobNumberData",
@@ -96,19 +86,21 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                 'Education': "ctl00_Main_content_lblEduTraining"}
     data_dict = {}
 
-    soup = bowl.soup
+    soup, name = bowl.soup, bowl.name
+    page_content = PageContent(name, soup)
 
     #gets each key its value in text form
     for k, v in id_dict.items():
         possible = []
-        if k == 'Description':
-            search_result = search(soup.find(id=v), bowl.name)
-            data_dict[k] = soup.find(id=v).text
         
+        if k == 'Description':
+            for e in soup.find(id=v):
+                page_content.desc_html.append(e)
+            data_dict[k] = soup.find(id=v).text
         
         elif k == 'Experience':
             if not 'Not Specified' in soup.find(id=v).text:
-                search_result.has_experience = True
+                page_content.has_experience = True
                 with open('has_experience.txt', 'a') as f:
                     f.write(soup.find(id=v).text + '\n')
                 data_dict[k] = soup.find(id=v).text
@@ -117,7 +109,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                 exp_el = soup.find(string=exp_re)
                 if exp_el and len(exp_el.text) < 500:
                     exp_text = exp_el.text
-                    search_result.exp_in_desc = True
+                    page_content.exp_in_desc = True
                 else:
                     header_re = re.compile('(EXPERIENCE|Qualifications|QUALIFICATIONS)')
                     experience_header = soup.find(string=re.compile(header_re))
@@ -129,7 +121,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                         if (exp_text and len(exp_text) > 350) or any_of_in(['%', '$', 'age'], exp_text):
                             exp_text = 'No experience requirements found'
                         else:
-                            search_result.exp_in_desc = True
+                            page_content.exp_in_desc = True
                     else:
                         exp_text = 'No experience requirements found'
                         for y in ['year', 'Year', 'month', 'Month']:
@@ -140,7 +132,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                                 candidates = [x for x in candidates if not any_of_in(['125 years', 'DaVita'], x.text)]
                                 if candidates:
                                     possible += candidates
-                                    search_result.exp_in_desc = True
+                                    page_content.exp_in_desc = True
                                 #exp_text += soup.find(id=id_dict['Description']).text
                                 #exp_text = "Experience requirements in description"
                                 #exp_text = str(possible)
@@ -154,12 +146,12 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                        print(('-' * 40) + '\n')
                     choice = int(input("Choose correct option for experience: \n"))
                     data_dict[k] = str(possible[choice])
-                    search_result.exp_in_desc = str(possible[choice]) != "Experience not found"
+                    page_content.exp_in_desc = str(possible[choice]) != "Experience not found"
         
         
         elif k == 'Education':
             if not 'No Minimum' in soup.find(id=v).text:
-                search_result.has_education = True
+                page_content.has_education = True
                 with open('has_education.txt', 'a') as f:
                     f.write(soup.find(id=v).text + '\n')
                 data_dict[k] = soup.find(id=v).text
@@ -169,7 +161,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                 edu_els = [x for x in edu_els if len(x.text) < 400 and x.text != '']
                 if edu_els:
                     edu_text = '\n'.join([e.text for e in edu_els])
-                    search_result.edu_in_desc = True
+                    page_content.edu_in_desc = True
                 else:
                     header_re = re.compile('(EDUCATION|Qualifications|QUALIFICATIONS)')
                     education_header = soup.find(string=re.compile(header_re))
@@ -184,7 +176,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                             if (edu_text and len(edu_text) > 350):
                                 edu_text = 'No education requirements found'
                             else:
-                                search_result.edu_in_desc = True
+                                page_content.edu_in_desc = True
                     else:
                         edu_text = 'No education requirements found'
                         for y in ['achelor', 'master', 'Master', 'PhD', 'ssociate', 'BLS', 'ccredited', 'ADN', 'BSN']:
@@ -195,7 +187,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                                 #candidates = [x for x in candidates if not any_of_in(['125 years', 'DaVita'], x.text)]
                                 if candidates:
                                     possible += candidates
-                                    search_result.edu_in_desc = True
+                                    page_content.edu_in_desc = True
                                 #exp_text += soup.find(id=id_dict['Description']).text
                                 #exp_text = "Experience requirements in description"
                                 #exp_text = str(possible)
@@ -212,7 +204,7 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
                        print(('-' * 40) + '\n')
                     choice = int(input("Choose correct option for education: \n"))
                     data_dict[k] = str(possible[choice])
-                    search_result.edu_in_desc = str(possible[choice]) != "Education not found"
+                    page_content.edu_in_desc = str(possible[choice]) != "Education not found"
         
         else:
             try:
@@ -225,4 +217,4 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
     #Removes location data that is sometimes at the end of the job title in posting
     data_dict['JobTitle'] = data_dict['JobTitle'].split('-')[0]
 
-    return data_dict, search_result
+    return data_dict, page_content
