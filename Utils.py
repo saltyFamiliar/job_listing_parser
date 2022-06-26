@@ -44,6 +44,12 @@ def print_debug(s: Any, name: str):
     print(f"\n{43 * '-'}-{43 * '-'}")
 
 
+def any_of_in(s: list[str], target: str) -> bool:
+    for c in s:
+        if c in target:
+            return True
+    return False
+
 # Writes entry to file at given filename
 def add_entry(filename: str, result: SearchResult, raw: bool=False) -> None:
     # Returns entry header and footer strings
@@ -65,28 +71,15 @@ def add_entry(filename: str, result: SearchResult, raw: bool=False) -> None:
 
 
 # Search for given keywords                        
-def search(desc_html, kws: list[str], fn: str) -> SearchResult:
+def search(desc_html, fn: str) -> SearchResult:
     # Iterates over keyword list, updating SearchResult if kw found in target
     # Returns bool representing whether a keyword was found in target
-    def find_kw(target, keywords: list[str], result: SearchResult) -> bool:
-        for kw in keywords:
-            if kw.upper() in str(target).upper():
-                #result.data += target.text
-                result.html_sources.append(target)
-                return True
-        return False
-
     result = SearchResult(fn, desc_html)
     for e in desc_html:
-        find_kw(e, kws, result)
+        result.html_sources.append(e)
     
     return result
 
-def any_of_in(s: list[str], target: str) -> bool:
-    for c in s:
-        if c in target:
-            return True
-    return False
 
 #finds info on jobs for location, job number, job title and salary
 def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]: 
@@ -105,12 +98,11 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, SearchResult]:
 
     soup = bowl.soup
 
-    keywords = ['diploma', 'degree', 'Bachelor', 'Master', 'phd', 'ged', 'associate', 'year', 'graduate']
     #gets each key its value in text form
     for k, v in id_dict.items():
         possible = []
         if k == 'Description':
-            search_result = search(soup.find(id=v), keywords, bowl.name)
+            search_result = search(soup.find(id=v), bowl.name)
             data_dict[k] = soup.find(id=v).text
         
         
