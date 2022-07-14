@@ -5,7 +5,6 @@ import bs4
 
 class PageContent():
     def __init__(self, fn, soup, desc_id=None) -> None:
-        self.file_searched = fn
         self.soup = soup
         self.desc_html = []
         if desc_id:
