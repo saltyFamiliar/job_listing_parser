@@ -1,28 +1,13 @@
 import os
 import csv
-from sys import argv
 from tqdm import tqdm
-import re
-
 from Utils import *
-
-
-RESULTS = 'results.txt'
-HAS_EXTRA_DATA = 'has_extra_data.txt'
-NOT_FOUND = 'not_found.txt'
 
 #dir_name = argv[1]
 #dir_name = 'html_files/test_sample'
 #dir_name = 'html_files/small'
 #dir_name = 'html_files/medium'
 dir_name = 'html_files/27-11-2021'
-
-# clear output files
-for name in [RESULTS, HAS_EXTRA_DATA, NOT_FOUND, 'has_education.txt', 'has_experience.txt']:
-    with open(name, 'w') as f:
-        f.write('')
-os.system('clear')
-
 
 print(f"\n{23 * ' '}COLLECTING DATA FROM FILES IN {dir_name}/\n")
 job_file_names = os.listdir(dir_name)

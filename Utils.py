@@ -99,7 +99,6 @@ def find_jobinfo(bowl: SoupBowl) -> tuple[dict, PageContent]:
             desc_soup = page_content.desc_soup
             data_dict[k] = soup.find(id=v).text
         
-
         elif k == 'Experience':
             params = SearchParams(
                 search_name=k,
@@ -249,7 +248,7 @@ def search_func(params: SearchParams) -> SearchResults:
             print(f"{i}: {option}")
             print(f"{'-' * 20}\n")
         print(padding)
-        choice = 0                                                      # Needs to take multiple answers
+        choice = int(input('>'))                                                      # Needs to take multiple answers
         
         results.data_found = str(candidates[choice]) + '\n\nFound via UI search'
         results.found_via_ui = results.data_found != fail_str + '\n\nFound via UI search'
